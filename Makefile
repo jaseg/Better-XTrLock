@@ -18,13 +18,18 @@ CDEFS=-DSHADOW_PWD
 CC=gcc
 CFLAGS=-Wall ${CDEFS}
 INSTALL=install
+RM=rm
 
 xtrlock:	xtrlock.o
 
 xtrlock.o:	xtrlock.c lock.bitmap mask.bitmap patchlevel.h
 
 install:	xtrlock
-		$(INSTALL) -c -m 755 xtrlock /usr/bin/X11
+		$(INSTALL) -c -m 2755 -o root -g shadow xtrlock /usr/bin
 
 install.man:
 		$(INSTALL) -c -m 644 xtrlock.man /usr/man/man1/xtrlock.1x
+
+remove:
+		$(RM) /usr/bin/xtrlock
+
