@@ -1,0 +1,1 @@
+?package(xtrlock):command="xtrlock" section="Apps/Tools" needs="x11" title="Xtrlock" longtitle="Xtrlock: X terminal lock"
