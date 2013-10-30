@@ -9,8 +9,7 @@ locks the X server till the user enters their password at the keyboard.
 
 While
 .B xtrlock
-is running, the mouse and keyboard are grabbed and the mouse cursor
-becomes a padlock.  Output displayed by X programs, and windows put up
+is running, the mouse and keyboard are grabbed.  Output displayed by X programs, and windows put up
 by new X clients, continue to be visible, and any new output is
 displayed normally.
 
@@ -32,9 +31,9 @@ None.
 Additional input devices other than the keyboard and mouse are not
 disabled.
 
-The timeouts, bitmaps and mouse cursor colour cannot be modifed.
+The timeouts cannot be modifed.
 .SH SEE ALSO
-.BR X "(1), " xlock "(1), Xlib Documentation."
+.BR X "(1), Xlib Documentation."
 .SH AUTHOR
 Ian Jackson <ian@chiark.greenend.org.uk>
 .SH COPYRIGHT
