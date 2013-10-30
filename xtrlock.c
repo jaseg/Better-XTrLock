@@ -41,8 +41,6 @@
 #include <shadow.h>
 #endif
 
-#include "patchlevel.h"
-
 Display *display;
 Window window, root;
 
