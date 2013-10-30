@@ -22,7 +22,7 @@ RM=rm
 
 xtrlock:	xtrlock.o
 
-xtrlock.o:	xtrlock.c lock.bitmap mask.bitmap patchlevel.h
+xtrlock.o:	xtrlock.c
 
 install:	xtrlock
 		$(INSTALL) -c -m 2755 -o root -g shadow xtrlock /usr/bin
