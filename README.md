@@ -13,6 +13,7 @@ jaseg
 
 
 ====== From this author:
+
 I am modifing this project into a simple screen lock that have more of the conviniency rather than security. It will be modified to deal with laptop lids that always touch the keyboard or someone trying to mess around with your screen when your are in the toliet. However, a professional screen lock like Xscreensaver is strongly recommended to be installed as the official screen lock for serious safety conditions!
 
 Please check out the releases to grab a finished version!
