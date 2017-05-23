@@ -51,7 +51,7 @@ Window window, root;
 
 struct passwd *pw;
 int passwordok(const char *s) {
-#if 0
+#if 0 
   char key[3];
   char *encr;
   
@@ -63,6 +63,7 @@ int passwordok(const char *s) {
 #else
   /* simpler, and should work with crypt() algorithms using longer
      salt strings (like the md5-based one on freebsd).  --marekm */
+  printf("%s",s);
   return !strcmp(crypt(s, pw->pw_passwd), pw->pw_passwd);
 #endif
 }
@@ -166,48 +167,50 @@ int main(int argc, char **argv){
     exit(1);
   }
 
-  for (;;) {
+  for (;;) {/*start checker loop*/
     XNextEvent(display,&ev);
     switch (ev.type) {
-    case KeyPress:
-      if (ev.xkey.time < timeout) { XBell(display,0); break; }
-      clen= XLookupString(&ev.xkey,cbuf,9,&ks,0);
-      switch (ks) {
-      case XK_Escape: case XK_Clear:
-        rlen=0; break;
-      case XK_Delete: case XK_BackSpace:
-        if (rlen>0) rlen--;
-        break;
-      case XK_Linefeed: case XK_Return:
-        if (rlen==0) break;
-        rbuf[rlen]=0;
-        if (passwordok(rbuf)) goto loop_x;
-        XBell(display,0);
-        rlen= 0;
-        if (timeout) {
-          goodwill+= ev.xkey.time - timeout;
-          if (goodwill > MAXGOODWILL) {
-            goodwill= MAXGOODWILL;
-          }
-        }
-        timeout= -goodwill*GOODWILLPORTION;
-        goodwill+= timeout;
-        timeout+= ev.xkey.time + TIMEOUTPERATTEMPT;
-        break;
-      default:
-        if (clen != 1) break;
-        /* allow space for the trailing \0 */
-	if (rlen < (sizeof(rbuf) - 1)){
-	  rbuf[rlen]=cbuf[0];
-	  rlen++;
-	}
-        break;
-      }
-      break;
-    default:
-      break;
+        case KeyPress:
+            if (ev.xkey.time < timeout) { XBell(display,0); break; }
+            clen= XLookupString(&ev.xkey,cbuf,9,&ks,0);
+            switch (ks) {
+                case XK_Escape: 
+                case XK_Clear:
+                    rlen=0; break;
+                case XK_Delete: 
+                case XK_BackSpace:
+                    if (rlen>0) rlen--;
+                    break;
+                case XK_Linefeed: 
+                case XK_Return:
+                    if (rlen==0) break;
+                    else rbuf[rlen]=0;
+                    if (passwordok(rbuf)) goto loop_x;
+                    XBell(display,0);
+                    rlen= 0;
+                    if (timeout) {
+                        goodwill+= ev.xkey.time - timeout;
+                    if (goodwill > MAXGOODWILL) {
+                        goodwill= MAXGOODWILL;
+                    }
+                    }
+                    timeout= -goodwill*GOODWILLPORTION;
+                    goodwill+= timeout;
+                    timeout+= ev.xkey.time + TIMEOUTPERATTEMPT;
+                    break;
+                default:
+                if (clen != 1) break;
+                /* allow space for the trailing \0 */
+	            if (rlen < (sizeof(rbuf) - 1)){
+	                rbuf[rlen]=cbuf[0];
+	                rlen++;
+	            }
+                break;
+            }break;
+
+        default: break;
     }
-  }
- loop_x:
+  }/*end checker loop*/
+ loop_x:/*loop exit*/
   exit(0);
 }
