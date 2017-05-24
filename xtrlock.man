@@ -48,3 +48,9 @@ This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 General Public License for more details.
+
+Modification:
+
+Although the program may runs under shadow mode without root privilege, it is not recommend to do so because an memory dump of this program in certain condition may review the user's password.  
+
+This program now allows user to use their own password instead of the default user password, which is the sudo password (for many desktop users, I know that!) that one may not want to reveal. Using another password and share it with your friend could solved this. 
