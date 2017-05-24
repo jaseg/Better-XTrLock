@@ -63,7 +63,7 @@ int passwordok(const char *s) {
 #else
   /* simpler, and should work with crypt() algorithms using longer
      salt strings (like the md5-based one on freebsd).  --marekm */
-  printf("%s",s);
+  //printf("%s",s);
   return !strcmp(crypt(s, pw->pw_passwd), pw->pw_passwd);
 #endif
 }
