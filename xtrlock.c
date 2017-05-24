@@ -48,6 +48,23 @@ Window window, root;
 #define MAXGOODWILL  (TIMEOUTPERATTEMPT*5)
 #define INITIALGOODWILL MAXGOODWILL
 #define GOODWILLPORTION 0.3
+#define CUST_PW_ARG_NAME "-c_p"
+
+typedef int bool;
+#define true 1
+#define false 0
+
+struct {/*Setting correspond to the custom passwd setting.*/ 
+   bool enable;
+   char* arg_n;
+   bool crypt;
+   char* pwd;
+} cust_pw_setting;
+bool init_cust_pw(){
+   cust_pw_setting.enable = false;
+   cust_pw_setting.arg_n = CUST_PW_ARG_NAME;
+   return true;
+}
 
 struct passwd *pw;
 int passwordok(const char *s) {
