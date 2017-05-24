@@ -49,25 +49,53 @@ Window window, root;
 #define INITIALGOODWILL MAXGOODWILL
 #define GOODWILLPORTION 0.3
 
-struct passwd *pw;
-int passwordok(const char *s) {
-#if 0
-  char key[3];
-  char *encr;
-  
-  key[0] = *(pw->pw_passwd);
-  key[1] =  (pw->pw_passwd)[1];
-  key[2] =  0;
-  encr = crypt(s, key);
-  return !strcmp(encr, pw->pw_passwd);
-#else
-  /* simpler, and should work with crypt() algorithms using longer
-     salt strings (like the md5-based one on freebsd).  --marekm */
-  return !strcmp(crypt(s, pw->pw_passwd), pw->pw_passwd);
-#endif
+typedef int bool;
+#define true 1
+#define false 0
+
+#define CUST_PW_ARG_NAME "-c_p"
+#define CUST_ECPT_PW_ARG_NAME "-c_e_p"
+struct {/*Setting correspond to the custom passwd setting.*/ 
+   bool enable;
+   bool crypt;
+   char* pwd;
+} cust_pw_setting;
+bool init_cust_pw(){
+   cust_pw_setting.enable = false;
+   return true;
 }
 
-int main(int argc, char **argv){
+struct passwd *pw;
+int passwordok(const char *s) {
+  /* simpler, and should work with crypt() algorithms using longer
+     salt strings (like the md5-based one on freebsd).  --marekm */
+     printf("%s, %i\n",s,strlen(s)); 
+     if(strlen(s) <= 1){
+            printf("%s, %i\n",s,strlen(s)); 
+            return !strcmp("a","b");
+     }
+    if(cust_pw_setting.enable){
+            printf("Entered_de: %s\n", s);
+            printf("Original_de: %s\n", cust_pw_setting.pwd);
+
+            char* enter = strdup(crypt(s, s));
+            char* original = cust_pw_setting.pwd;
+
+            printf("Entered: %s\n", enter);
+            printf("Original: %s\n", original);
+            unsigned int i = strcmp(enter, original);
+            printf("%i\n",i);
+            free(enter);
+            return !i;
+    }
+  return !strcmp(crypt(s, pw->pw_passwd), pw->pw_passwd);
+}
+
+void print_help(){
+        printf("Xtrlock:\n  -h show this help\n  -c_p [password] use custom non-encrypted password\n");
+}
+
+int lock(){
   XEvent ev;
   KeySym ks;
   char cbuf[10], rbuf[128]; /* shadow appears to suggest 127 a good value here */
@@ -85,11 +113,6 @@ int main(int argc, char **argv){
   struct timeval tv;
   int tvt, gs;
 
-  if (argc != 1) {
-    fprintf(stderr,"xtrlock: no arguments allowed\n");
-    exit(1);
-  }
-  
   errno=0;  pw= getpwuid(getuid());
   if (!pw) { perror("password entry for uid not found"); exit(1); }
 #ifdef SHADOW_PWD
@@ -166,48 +189,88 @@ int main(int argc, char **argv){
     exit(1);
   }
 
-  for (;;) {
+  for (;;) {/*start checker loop*/
     XNextEvent(display,&ev);
     switch (ev.type) {
-    case KeyPress:
-      if (ev.xkey.time < timeout) { XBell(display,0); break; }
-      clen= XLookupString(&ev.xkey,cbuf,9,&ks,0);
-      switch (ks) {
-      case XK_Escape: case XK_Clear:
-        rlen=0; break;
-      case XK_Delete: case XK_BackSpace:
-        if (rlen>0) rlen--;
-        break;
-      case XK_Linefeed: case XK_Return:
-        if (rlen==0) break;
-        rbuf[rlen]=0;
-        if (passwordok(rbuf)) goto loop_x;
-        XBell(display,0);
-        rlen= 0;
-        if (timeout) {
-          goodwill+= ev.xkey.time - timeout;
-          if (goodwill > MAXGOODWILL) {
-            goodwill= MAXGOODWILL;
-          }
-        }
-        timeout= -goodwill*GOODWILLPORTION;
-        goodwill+= timeout;
-        timeout+= ev.xkey.time + TIMEOUTPERATTEMPT;
-        break;
-      default:
-        if (clen != 1) break;
-        /* allow space for the trailing \0 */
-	if (rlen < (sizeof(rbuf) - 1)){
-	  rbuf[rlen]=cbuf[0];
-	  rlen++;
-	}
-        break;
-      }
-      break;
-    default:
-      break;
+        case KeyPress:
+            if (ev.xkey.time < timeout) { XBell(display,0); break; }
+            clen= XLookupString(&ev.xkey,cbuf,9,&ks,0);
+            switch (ks) {
+                case XK_Escape: 
+                case XK_Clear:
+                    rlen=0; break;
+                case XK_Delete: 
+                case XK_BackSpace:
+                    if (rlen>0) rlen--;
+                    break;
+                case XK_Linefeed: 
+                case XK_Return:
+                    if (rlen==0) break;
+                    else rbuf[rlen]=0;
+                    if (passwordok(rbuf)) goto loop_x;
+                    XBell(display,0);
+                    rlen= 0;
+                    if (timeout) {
+                        goodwill+= ev.xkey.time - timeout;
+                    if (goodwill > MAXGOODWILL) {
+                        goodwill= MAXGOODWILL;
+                    }
+                    }
+                    timeout= -goodwill*GOODWILLPORTION;
+                    goodwill+= timeout;
+                    timeout+= ev.xkey.time + TIMEOUTPERATTEMPT;
+                    break;
+                default:
+                if (clen != 1) break;
+                /* allow space for the trailing \0 */
+	            if (rlen < (sizeof(rbuf) - 1)){
+	                rbuf[rlen]=cbuf[0];
+	                rlen++;
+	            }
+                break;
+            }break;
+
+        default: break;
     }
-  }
- loop_x:
+  }/*end checker loop*/
+ loop_x:/*loop exit*/
   exit(0);
 }
+
+int main(int argc, char **argv){
+        /*area for any arg init*/
+  if(!init_cust_pw
+    ){
+        fprintf(stderr,"Failed to init custom password config");
+        exit(-1);}
+        /*area for any arg init*/
+
+  if(1 == argc){
+        lock();
+    }
+  else{
+        if(argc >= 4 | argc <= 2){/*desired amount = 3*/
+                print_help();
+                exit(-1);
+        }
+        else if(strcmp(argv[1], CUST_PW_ARG_NAME)==0){/*custom pwd without encryption*/
+                cust_pw_setting.enable = true;
+                //cust_pw_setting.pwd = crypt(argv[2], argv[2]);
+                cust_pw_setting.pwd = strdup(crypt(argv[2], argv[2]));/*never freed, fine in this case*/
+                cust_pw_setting.crypt = false;
+                lock();
+        }
+        else if(strcmp(argv[1], CUST_ECPT_PW_ARG_NAME)==0){
+                cust_pw_setting.enable = true;
+                cust_pw_setting.pwd = argv[2];
+                cust_pw_setting.crypt = true;
+                lock();
+        }
+        else{
+                print_help();
+                exit(-1);
+        }
+  }
+  exit(0);
+}
+
