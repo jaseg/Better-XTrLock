@@ -36,6 +36,7 @@
 #include <math.h>
 #include <ctype.h>
 #include <values.h>
+#include <unistd.h>
 
 #ifdef SHADOW_PWD
 #include <shadow.h>
@@ -55,9 +56,12 @@ typedef int bool;
 #define true 1
 #define false 0
 
-#define CUST_PW_ARG_NAME "-c_p"
-#define CUST_ECPT_PW_ARG_NAME "-c_e_p"
-#define CUST_PW_CAL_ARG_NAME "-cal"
+#define CUST_PW_ARG_NAME "c_p"
+#define CUST_ECPT_PW_ARG_NAME "c_e_p"
+#define CUST_PW_CAL_ARG_NAME "cal"
+#define CUST_LOG_FILE "clog"
+#define HELP_ARG_NAME "h"
+
 struct {/*Setting correspond to the custom passwd setting. --d0048*/ 
    bool enable;
    bool crypt;
@@ -253,36 +257,36 @@ int main(int argc, char **argv){
         exit(-1);}
         /*area for any arg init*/
 
-  if(1 == argc){
-        lock();
-    }
-  else{
-        if((argc >= 4) | (argc <= 2)){/*desired amount = 3*/
-                print_help();
-                exit(-1);
+        char opt = 0;/*TODO: learn getopti, refine system|fix changes*/
+        while((opt = getopt(argc, argv, "h:c_p:c_e_p:cal:clog")) != -1){
+
+                if(strcmp(opt, HELP_ARG_NAME) == 0){
+                    print_help();
+                    exit(0);
+                }
+                if(strcmp(opt, CUST_PW_ARG_NAME)==0){/*custom pwd without encryption*/
+                    cust_pw_setting.enable = true;
+                    //cust_pw_setting.pwd = crypt(argv[2], argv[2]);
+                    cust_pw_setting.pwd = strdup(crypt(optarg, optarg));/*never freed, fine in this case*/
+                    cust_pw_setting.crypt = false;
+                    lock();
+                }
+                else if(strcmp(argv[1], CUST_ECPT_PW_ARG_NAME)==0){/*custom pwd encrypted already*/
+                    cust_pw_setting.enable = true;
+                    cust_pw_setting.pwd = optarg;
+                    cust_pw_setting.crypt = true;
+                    lock();
+                }
+                else if(strcmp(argv[1], CUST_PW_CAL_ARG_NAME)==0){/*encryption of pwd*/
+                    printf("%s\n", crypt(optarg, optarg));
+                    exit(0);
+                }
+                else{
+                    print_help();
+                    exit(0);
+                }
+
+                        
         }
-        else if(strcmp(argv[1], CUST_PW_ARG_NAME)==0){/*custom pwd without encryption*/
-                cust_pw_setting.enable = true;
-                //cust_pw_setting.pwd = crypt(argv[2], argv[2]);
-                cust_pw_setting.pwd = strdup(crypt(argv[2], argv[2]));/*never freed, fine in this case*/
-                cust_pw_setting.crypt = false;
-                lock();
-        }
-        else if(strcmp(argv[1], CUST_ECPT_PW_ARG_NAME)==0){
-                cust_pw_setting.enable = true;
-                cust_pw_setting.pwd = argv[2];
-                cust_pw_setting.crypt = true;
-                lock();
-        }
-        else if(strcmp(argv[1], CUST_PW_CAL_ARG_NAME)==0){
-                printf("%s\n", crypt(argv[2], argv[2]));
-                exit(0);
-        }
-        else{
-                print_help();
-                exit(-1);
-        }
-  }
-  exit(0);
 }
 
