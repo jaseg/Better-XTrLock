@@ -16,7 +16,7 @@
 LDLIBS=-lX11 -lcrypt
 CDEFS=-DSHADOW_PWD
 CC=gcc
-CFLAGS=-Wall ${CDEFS} 
+CFLAGS=-Wall ${CDEFS}
 INSTALL=install
 RM=rm
 
@@ -24,22 +24,14 @@ xtrlock:	xtrlock.o
 
 xtrlock.o:	xtrlock.c
 
-debug:
-	$(CC) xtrlock.c $(LDLIBS) -Wall ${CDEFS} -D DEBUG 
-
+debug: 
+	$(CC) xtrlock.c $(LDLIBS) $(CFLAGS) -DDEBUG -o xtrlock
 install:	xtrlock
-	echo "install -c -m 2755 -o root -g shadow xtrlock \$$1" > file_to_dest.sh;
-	chmod +x ./file_to_dest.sh;
-	echo $(PATH)| awk -F ":" '{$$(1)=$$(1); print $$(0)}'|xargs ./file_to_dest.sh;
-	rm file_to_dest.sh;
+		$(INSTALL) -c -m 2755 -o root -g shadow xtrlock /usr/bin
 
 install.man:
-	$(INSTALL) -c -m 644 xtrlock.man /usr/man/man1/xtrlock.1x
+		$(INSTALL) -c -m 644 xtrlock.man /usr/man/man1/xtrlock.1x
 
 remove:
-	echo "cd \$$1 && rm xtrlock" > rm_file_to_dest.sh;
-	chmod +x ./rm_file_to_dest.sh;
-	echo $(PATH) | awk -F ":" '{$$1=$$1; print $$0}'|xargs ./rm_file_to_dest.sh;
-	rm rm_file_to_dest.sh;
-
+		$(RM) /usr/bin/xtrlock
 
