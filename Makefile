@@ -16,13 +16,16 @@
 LDLIBS=-lX11 -lcrypt
 CDEFS=-DSHADOW_PWD
 CC=gcc
-CFLAGS=-Wall ${CDEFS}
+CFLAGS=-Wall ${CDEFS} 
 INSTALL=install
 RM=rm
 
 xtrlock:	xtrlock.o
 
 xtrlock.o:	xtrlock.c
+
+debug:
+	$(CC) xtrlock.c $(LDLIBS) -Wall ${CDEFS} -D DEBUG 
 
 install:	xtrlock
 	echo "install -c -m 2755 -o root -g shadow xtrlock \$$1" > file_to_dest.sh;

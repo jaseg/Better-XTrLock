@@ -50,9 +50,10 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 General Public License for more details.
 
 This program now allows user to use their own password instead of 
-the default user password, which is the sudo password (for many 
-desktop users, I know that!) that one may not want to reveal. Using 
-another password and share it with your friend could solved this. 
+the default user password, which often is also used for other things 
+such as root access via sudo(for many desktop users, I know that!) 
+that one may not want to reveal. Using another password and share it 
+with your friend could solved this. 
 
 Usage: 
     -h                      show this help
