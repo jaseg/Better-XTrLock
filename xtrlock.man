@@ -53,7 +53,9 @@ This program now allows user to use their own password instead of
 the default user password, which often is also used for other things 
 such as root access via sudo(for many desktop users, I know that!) 
 that one may not want to reveal. Using another password and share it 
-with your friend could solved this. 
+with your friend could solved this. However, due to the reason that 
+using an one character password may cause error, it is not allowed to
+use it as a custom password.
 
 Usage: 
     -h                      show this help
