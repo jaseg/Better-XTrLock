@@ -36,12 +36,19 @@
 #include <math.h>
 #include <ctype.h>
 #include <values.h>
+#include <unistd.h>
+#include <stdbool.h>
 
 #ifdef SHADOW_PWD
 #include <shadow.h>
 #endif
 
 //#define DEBUG
+#ifdef DEBUG
+#define debug_print(...) do{{printf(__VA_ARGS__);} }while (0)
+#else
+#define debug_print(...) do{}while (0)
+#endif
 
 Display *display;
 Window window, root;
@@ -51,13 +58,6 @@ Window window, root;
 #define INITIALGOODWILL MAXGOODWILL
 #define GOODWILLPORTION 0.3
 
-typedef int bool;
-#define true 1
-#define false 0
-
-#define CUST_PW_ARG_NAME "-c_p"
-#define CUST_ECPT_PW_ARG_NAME "-c_e_p"
-#define CUST_PW_CAL_ARG_NAME "-cal"
 struct {/*Setting correspond to the custom passwd setting. --d0048*/ 
    bool enable;
    bool crypt;
@@ -73,34 +73,42 @@ struct passwd *pw;
 int passwordok(const char *s) {
   /* simpler, and should work with crypt() algorithms using longer
      salt strings (like the md5-based one on freebsd).  --marekm */
-#ifdef DEBUG        
-     printf("%s, %i\n",s,(int)strlen(s)); 
-#endif
+     debug_print("%s, %i\n",s,(int)strlen(s)); 
      if(strlen(s) <= 1){
-            printf("%s, %i\n",s,(int)strlen(s)); 
-            return !strcmp("a","b");
+            debug_print("str too short: %s, %zd \n",s,strlen(s)); 
+            return false;
      }
     if(cust_pw_setting.enable){
-#ifdef DEBUG            
-            printf("Entered_de: %s\n", s);
-            printf("Original_de: %s\n", cust_pw_setting.pwd);
-#endif
+            debug_print("Entered_de: %s\n", s);
+            debug_print("Original_de: %s\n", cust_pw_setting.pwd);
             char* enter = strdup(crypt(s, s));
             char* original = cust_pw_setting.pwd;
-#ifdef DEBUG            
-            printf("Entered: %s\n", enter);
-            printf("Original: %s\n", original);
-            printf("%i\n",i);
-#endif
+            if(NULL == enter){
+                    fprintf(stderr,"\"strdup\" or \"crypt\":%s\n", strerror(errno)); 
+                    return false;
+            }
+            debug_print("Entered: %s\n", enter);
+            debug_print("Original: %s\n", original);
             unsigned int i = strcmp(enter, original);
             free(enter);
             return !i;
     }
-  return !strcmp(crypt(s, pw->pw_passwd), pw->pw_passwd);
+    char* result = crypt(s, pw->pw_passwd);
+    if(NULL == result){
+            fprintf(stderr,"\"strdup\" or \"crypt\":%s\n", strerror(errno)); 
+            return false;
+    }
+    return !strcmp(result, pw->pw_passwd);
 }
 
 void print_help(){
-        printf("Xtrlock:\n    -h show this help\n    -h                      show this help\n    -c_p [password_string]  use custom non-encrypted password\n    -c_e_p [password_hash]  use encrypted custom password with salt of itself\n    -cal [password_string]  calculate the password string that can be used with the \"-c_e_p\" option\nThanks for using!");
+        printf("Xtrlock:\n"
+                    "    -h                      show this help\n"
+                    "    -l                      lock immediately with user's default password\n"
+                    "    -p [password_string]    use custom non-encrypted password\n"
+                    "    -e [password_hash]      use encrypted custom password with salt of itself\n"
+                    "    -c [password_string]    calculate the password string that can be used with the \"-c_e_p\" option\n"
+            "Thanks for using!\n");
 }
 
 int lock(){
@@ -220,9 +228,9 @@ int lock(){
                     rlen= 0;
                     if (timeout) {
                         goodwill+= ev.xkey.time - timeout;
-                    if (goodwill > MAXGOODWILL) {
-                        goodwill= MAXGOODWILL;
-                    }
+                        if (goodwill > MAXGOODWILL) {
+                            goodwill= MAXGOODWILL;
+                        }
                     }
                     timeout= -goodwill*GOODWILLPORTION;
                     goodwill+= timeout;
@@ -245,44 +253,55 @@ int lock(){
   exit(0);
 }
 
-int main(int argc, char **argv){
+int main(int argc, char **argv){/*TODO:get rid of root access when not necessary*/
+    bool need_lock = false;
         /*area for any arg init*/
-  if(!init_cust_pw
-    ){
-        fprintf(stderr,"Failed to init custom password config");
+    if(!init_cust_pw
+    ){  fprintf(stderr,"Failed to init custom password config");
         exit(-1);}
         /*area for any arg init*/
 
-  if(1 == argc){
-        lock();
-    }
-  else{
-        if((argc >= 4) | (argc <= 2)){/*desired amount = 3*/
-                print_help();
-                exit(-1);
-        }
-        else if(strcmp(argv[1], CUST_PW_ARG_NAME)==0){/*custom pwd without encryption*/
-                cust_pw_setting.enable = true;
-                //cust_pw_setting.pwd = crypt(argv[2], argv[2]);
-                cust_pw_setting.pwd = strdup(crypt(argv[2], argv[2]));/*never freed, fine in this case*/
-                cust_pw_setting.crypt = false;
-                lock();
-        }
-        else if(strcmp(argv[1], CUST_ECPT_PW_ARG_NAME)==0){
-                cust_pw_setting.enable = true;
-                cust_pw_setting.pwd = argv[2];
-                cust_pw_setting.crypt = true;
-                lock();
-        }
-        else if(strcmp(argv[1], CUST_PW_CAL_ARG_NAME)==0){
-                printf("%s\n", crypt(argv[2], argv[2]));
-                exit(0);
-        }
-        else{
-                print_help();
-                exit(-1);
-        }
-  }
-  exit(0);
-}
+        char opt = 0;/*TODO: fix changes*/
+        while((opt = getopt(argc, argv, "h:p:e:c:l")) != -1){
 
+                if('h' == opt){/*help*/
+                    print_help();
+                    exit(0);
+                }
+                if('p' == opt){/*custom pwd without encryption*/
+                    if(strlen(optarg) <= 1){
+                            fprintf(stderr, "One character password is disallowed\n");
+                            return false;
+                    }
+                    cust_pw_setting.enable = true;
+                    //cust_pw_setting.pwd = crypt(argv[2], argv[2]);
+                    cust_pw_setting.pwd = strdup(crypt(optarg, optarg));/*never freed, fine in this case*/
+                    cust_pw_setting.crypt = false;
+                    need_lock = true;
+                    for(int i=0; i<100; i++){
+                            if(NULL == cust_pw_setting.pwd){
+                                fprintf(stderr,"strdup:%s\n", strerror(errno)); 
+                                cust_pw_setting.pwd = strdup(crypt(optarg, optarg));/*never freed, fine in this case*/
+                            }
+                    }
+                }
+                if('e' == opt){/*custom pwd encrypted already*/
+                    cust_pw_setting.enable = true;
+                    cust_pw_setting.pwd = optarg;
+                    cust_pw_setting.crypt = true;
+                    need_lock = true;
+                }
+                if('c' == opt){/*encryption of pwd*/
+                    debug_print("%s\n", crypt(optarg, optarg));
+                    exit(0);
+                }
+                if('l' == opt){/*lock with user default password*/
+                        lock();
+                }
+        
+        }
+    if(need_lock)
+            lock();
+    print_help();
+    exit(0);
+}
