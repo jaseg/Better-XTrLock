@@ -225,7 +225,7 @@ int lock(){
   }
   
   show_lock();
-  printf("Successfully locked");
+  printf("Successfully locked\n");
 
   for (;;) {/*start checker loop*/
     XNextEvent(display,&ev);
