@@ -71,17 +71,31 @@ bool init_cust_pw(){
 
 struct passwd *pw;
 int passwordok(const char *s) {
-  /* simpler, and should work with crypt() algorithms using longer
-     salt strings (like the md5-based one on freebsd).  --marekm */
-     debug_print("%s, %i\n",s,(int)strlen(s)); 
-     if(strlen(s) <= 1){
+ /* simpler, and should work with crypt() algorithms using longer
+    salt strings (like the md5-based one on freebsd).  --marekm */
+    debug_print("%s, %i\n",s,(int)strlen(s)); 
+    
+    const char* f_salt;
+    if(strlen(s) == 1){/*salt need to be at least two characters long to prevent segmentation fault*/
+           #ifdef DISALLOW_ONE_C_PW /*if one character password is allowed*/
             debug_print("str too short: %s, %zd \n",s,strlen(s)); 
             return false;
-     }
+            #else
+            const char salt[2] = {*s, *s};
+            debug_print("salt:%s\n", salt);
+            f_salt = salt;
+            fprintf(stderr, "One character password is depreciated\n");
+            debug_print("One c pwd, double as salt\n");
+            #endif
+    }
+    else{
+                f_salt = s;
+    }
+
     if(cust_pw_setting.enable){
             debug_print("Entered_de: %s\n", s);
             debug_print("Original_de: %s\n", cust_pw_setting.pwd);
-            char* enter = strdup(crypt(s, s));
+            char* enter = strdup(crypt(s, f_salt));
             char* original = cust_pw_setting.pwd;
             if(NULL == enter){
                     fprintf(stderr,"\"strdup\" or \"crypt\":%s\n", strerror(errno)); 
@@ -99,6 +113,9 @@ int passwordok(const char *s) {
             return false;
     }
     return !strcmp(result, pw->pw_passwd);
+}
+
+void show_lock(){/*TODO: blink the screen to indicate a successful lock*/
 }
 
 void print_help(){
@@ -130,7 +147,9 @@ int lock(){
   int tvt, gs;
 
   errno=0;  pw= getpwuid(getuid());
-  if (!pw) { perror("password entry for uid not found"); exit(1); }
+  if (!pw && !cust_pw_setting.enable){
+          perror("password entry for uid not found"); exit(1); 
+  }
 #ifdef SHADOW_PWD
   sp = getspnam(pw->pw_name);
   if (sp)
@@ -146,7 +165,7 @@ int lock(){
      and we don't need root privileges any longer.  --marekm */
   setuid(getuid());
 
-  if (strlen(pw->pw_passwd) < 13) {
+  if (strlen(pw->pw_passwd) < 13 && !cust_pw_setting.enable) {
     fputs("password entry has no pwd\n",stderr); exit(1);
   }
   
@@ -204,6 +223,9 @@ int lock(){
     fprintf(stderr,"xtrlock: cannot grab pointer\n");
     exit(1);
   }
+  
+  show_lock();
+  printf("Successfully locked");
 
   for (;;) {/*start checker loop*/
     XNextEvent(display,&ev);
@@ -256,12 +278,12 @@ int lock(){
 int main(int argc, char **argv){/*TODO:get rid of root access when not necessary*/
     bool need_lock = false;
         /*area for any arg init*/
-    if(!init_cust_pw
-    ){  fprintf(stderr,"Failed to init custom password config");
+    if(!init_cust_pw){  
+        fprintf(stderr,"Failed to init custom password config");
         exit(-1);}
         /*area for any arg init*/
 
-        char opt = 0;/*TODO: fix changes*/
+        char opt = 0;
         while((opt = getopt(argc, argv, "h:p:e:c:l")) != -1){
 
                 if('h' == opt){/*help*/
@@ -269,20 +291,28 @@ int main(int argc, char **argv){/*TODO:get rid of root access when not necessary
                     exit(0);
                 }
                 if('p' == opt){/*custom pwd without encryption*/
-                    if(strlen(optarg) <= 1){
+                    char* f_salt;
+                    if(strlen(optarg) == 1){/*salt need to be at least two characters long to prevent segmentation fault*/
+                            #ifdef DISALLOW_ONE_C_PW /*if one character password is allowed*/
                             fprintf(stderr, "One character password is disallowed\n");
-                            return false;
+                            return -1;
+                            #else
+                            char salt[2] = {*optarg, *optarg};
+                            f_salt = salt;
+                            fprintf(stderr, "One character password is depreciated\n");
+                            #endif
+                    }
+                    else{
+                            f_salt = optarg;
                     }
                     cust_pw_setting.enable = true;
                     //cust_pw_setting.pwd = crypt(argv[2], argv[2]);
-                    cust_pw_setting.pwd = strdup(crypt(optarg, optarg));/*never freed, fine in this case*/
+                    cust_pw_setting.pwd = strdup(crypt(optarg, f_salt));/*never freed, fine in this case*/
                     cust_pw_setting.crypt = false;
                     need_lock = true;
-                    for(int i=0; i<100; i++){
-                            if(NULL == cust_pw_setting.pwd){
-                                fprintf(stderr,"strdup:%s\n", strerror(errno)); 
-                                cust_pw_setting.pwd = strdup(crypt(optarg, optarg));/*never freed, fine in this case*/
-                            }
+                    if(NULL == cust_pw_setting.pwd){
+                            fprintf(stderr,"strdup:%s\n", strerror(errno)); 
+                            exit(-1);
                     }
                 }
                 if('e' == opt){/*custom pwd encrypted already*/
@@ -292,16 +322,22 @@ int main(int argc, char **argv){/*TODO:get rid of root access when not necessary
                     need_lock = true;
                 }
                 if('c' == opt){/*encryption of pwd*/
-                    debug_print("%s\n", crypt(optarg, optarg));
+                    char *f_salt;
+                    if(strlen(optarg) == 1){
+                            char salt[2] = {*optarg, *optarg};
+                            f_salt = salt;
+                    }
+                    else{
+                            f_salt = optarg;
+                    }
+                    printf("%s\n", crypt(optarg, f_salt));
                     exit(0);
                 }
                 if('l' == opt){/*lock with user default password*/
                         lock();
                 }
-        
         }
-    if(need_lock)
-            lock();
+    if(need_lock) lock();
     print_help();
     exit(0);
 }
