@@ -27,6 +27,8 @@ xtrlock.o:	xtrlock.c
 debug: 
 	$(CC) xtrlock.c $(LDLIBS) $(CFLAGS) -DDEBUG -o xtrlock
 
+clean:
+	-rm *.o xtrlock
 install:	xtrlock
 		$(INSTALL) -c -m 2755 -o root -g shadow xtrlock /usr/bin
 
