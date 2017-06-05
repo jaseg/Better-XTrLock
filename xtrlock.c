@@ -51,8 +51,9 @@
 #endif
 
 Display *display;
-Window window, root;
+Window window, blank_window, trans_window, root;
 
+//#define DISALLOW_ONE_C_PW
 #define TIMEOUTPERATTEMPT 30000
 #define MAXGOODWILL  (TIMEOUTPERATTEMPT*5)
 #define INITIALGOODWILL MAXGOODWILL
@@ -63,6 +64,9 @@ struct {/*Setting correspond to the custom passwd setting. --d0048*/
    bool crypt;
    char* pwd;
 } cust_pw_setting;
+
+bool blank_screen = false;
+int blink_delay = 100000;
 
 bool init_cust_pw(){
    cust_pw_setting.enable = false;
@@ -115,9 +119,6 @@ int passwordok(const char *s) {
     return !strcmp(result, pw->pw_passwd);
 }
 
-void show_lock(){/*TODO: blink the screen to indicate a successful lock*/
-}
-
 void print_help(){
         printf("Xtrlock:\n"
                     "    -h                      show this help\n"
@@ -125,6 +126,8 @@ void print_help(){
                     "    -p [password_string]    use custom non-encrypted password\n"
                     "    -e [password_hash]      use encrypted custom password with salt of itself\n"
                     "    -c [password_string]    calculate the password string that can be used with the \"-c_e_p\" option\n"
+                    "    -b                      lock with a blank screen\n"
+                    "    -d [delay_usec]         u seconds the screen blinks on successful locks(0 for no-delay & 100000 for 0.1 s)\n"
             "Thanks for using!\n");
 }
 
@@ -177,16 +180,24 @@ int lock(){
   }
 
   attrib.override_redirect= True;
-  window= XCreateWindow(display,DefaultRootWindow(display),
+  attrib.background_pixel = BlackPixel(display, DefaultScreen(display));
+  
+  blank_window= XCreateWindow(display,DefaultRootWindow(display),/*blank screen*/
+                        0,0,DisplayWidth(display, DefaultScreen(display)),
+                        DisplayHeight(display, DefaultScreen(display)),
+                        0,DefaultDepth(display, DefaultScreen(display)), CopyFromParent, DefaultVisual(display, DefaultScreen(display)),
+                        CWOverrideRedirect|CWBackPixel,&attrib);
+
+  trans_window= XCreateWindow(display,DefaultRootWindow(display),
                         0,0,1,1,0,CopyFromParent,InputOnly,CopyFromParent,
                         CWOverrideRedirect,&attrib);
+  
+  window = trans_window;
                         
   XSelectInput(display,window,KeyPressMask|KeyReleaseMask);
 
-
-
   csr= XCreateBitmapFromData(display,window,csr_bits,1,1);
-
+  
   cursor= XCreatePixmapCursor(display,csr,csr,&xcolor,&xcolor,1,1);
 
   XMapWindow(display,window);
@@ -195,7 +206,8 @@ int lock(){
    *launching xtrlock from a keystroke shortcut, meaning xtrlock fails
    *to start We deal with this by waiting (up to 100 times) for 10,000
    *microsecs and trying to grab each time. If we still fail
-   *(i.e. after 1s in total), then give up, and emit an error
+   *(i.e. after 1s in total), then give up, and emit an error.
+   *Also, only blank the screen to indicate a success lock.
    */
   
   gs=0; /*gs==grab successful*/
@@ -223,8 +235,17 @@ int lock(){
     fprintf(stderr,"xtrlock: cannot grab pointer\n");
     exit(1);
   }
-  
-  show_lock();
+
+  if((!blank_screen) && (blink_delay!= 0)){/*blink to indicate a successful lock*/
+    XMapWindow(display, blank_window);
+    XFlush(display);
+    usleep(blink_delay);/*0.1s*/
+    XUnmapWindow(display, blank_window);
+    debug_print("Unmapped after %i u seconds\n", blink_delay);
+    XMapWindow(display, trans_window);
+    XFlush(display);
+    debug_print("locked and blinked\n");
+  }
   printf("Successfully locked\n");
 
   for (;;) {/*start checker loop*/
@@ -278,15 +299,15 @@ int lock(){
 int main(int argc, char **argv){/*TODO:get rid of root access when not necessary*/
     bool need_lock = false;
         /*area for any arg init*/
-    if(!init_cust_pw){  
+    if(!init_cust_pw()){  
         fprintf(stderr,"Failed to init custom password config");
         exit(-1);}
         /*area for any arg init*/
 
         char opt = 0;
-        while((opt = getopt(argc, argv, "h:p:e:c:l")) != -1){
+        while((opt = getopt(argc, argv, ":h:p:e:c:l:b:d:")) != -1){
 
-                if('h' == opt){/*help*/
+                if('h' == opt && ':' == opt){/*help*/
                     print_help();
                     exit(0);
                 }
@@ -333,11 +354,24 @@ int main(int argc, char **argv){/*TODO:get rid of root access when not necessary
                     printf("%s\n", crypt(optarg, f_salt));
                     exit(0);
                 }
-                if('l' == opt){/*lock with user default password*/
+                if('l' == optopt && ':' == opt){/*lock with user default password after delay*/
+                        debug_print("locked immidiently\n");
                         lock();
                 }
+                if('b' == opt){/*lock with a blank screen*/
+                        blank_screen = true;
+                        debug_print("blank_screen mode \n");
+                }
+                if('d' == opt){/*delay of screen blinks*/
+                        blink_delay = atoi(optarg);
+                        if(blink_delay<0){
+                                debug_print("Delay value not valid\n");
+                                exit(-1);
+                        }
+                }
+
         }
     if(need_lock) lock();
     print_help();
-    exit(0);
+    exit(-1);
 }
