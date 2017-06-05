@@ -65,9 +65,21 @@ as salt and will appear as they are even after encryption, using any
 custom password shorter than two characters is means the hash on the 
 password is completely useless thus make it extremely vulnerable and 
 depreciated. 
+
+To lock and cover the screen completely as what a normal screen lock 
+does instead of exposing the screen, pass the -b flag.
+
+Also, in order to notify the user that the screen has been successfully 
+locked, the screen will be blinked (which can be configured with -d 
+option) on successful locks under normal mode. While the -b flag is passed,
+the screen will only be covered on successful locks.
+[If the worse comes to the worst, use <Ctrl>+<Alt>+<F2> and login to kill
+this program...]
  
 Usage: 
     -h                      show this help
     -p [password_string]    use custom non-encrypted password
     -e [password_hash]      use encrypted custom password with salt of itself
     -c [password_string]    calculate the password string that can be used with the "-c_e_p" option
+    -b                      lock with a blank screen
+    -d [delay]              u seconds the screen blinks on successful locks(0 for no-delay & 100000 for 0.1 s), default = 0.1s
