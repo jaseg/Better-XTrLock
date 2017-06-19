@@ -48,3 +48,38 @@ This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 General Public License for more details.
+
+This program now allows user to use their own password instead of 
+the default user password, which often is also used for other things 
+such as root access via sudo(for many desktop users, I know that!) 
+that one may not want to reveal. Using another password and share it 
+with your friend could solved this. 
+
+To use this program with keyboard shortcuts, try tools like xbindkeys.
+However, to encrypt the password in the config files of the binding
+tools, one may want to use the -c flag to encrypt the password string
+and pass the encrypted string with the -e flag.
+
+[Warning]:Since the first two characters of the password will be used
+as salt and will appear as they are even after encryption, using any
+custom password shorter than two characters is means the hash on the 
+password is completely useless thus make it extremely vulnerable and 
+depreciated. 
+
+To lock and cover the screen completely as what a normal screen lock 
+does instead of exposing the screen, pass the -b flag.
+
+Also, in order to notify the user that the screen has been successfully 
+locked, the screen will be blinked (which can be configured with -d 
+option) on successful locks under normal mode. While the -b flag is passed,
+the screen will only be covered on successful locks.
+[If the worse comes to the worst, use <Ctrl>+<Alt>+<F2> and login to kill
+this program...]
+ 
+Usage: 
+    -h                      show this help
+    -p [password_string]    use custom non-encrypted password
+    -e [password_hash]      use encrypted custom password with salt of itself
+    -c [password_string]    calculate the password string that can be used with the "-c" option
+    -b                      lock with a blank screen
+    -d [delay]              milliseconds the screen blinks on successful locks(0 for no-delay & 100000 for 0.1 s), default = 0.1s
