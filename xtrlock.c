@@ -105,6 +105,18 @@ int passwordok(const char* s)
         }
 }
 
+void print_help()
+{
+        printf("Xtrlock:\n"
+               "    -h                      show this help\n"
+               "    -l                      lock immediately with user's default password\n"
+               "    -p [password_string]    use custom non-encrypted password\n"
+               "    -e [password_hash]      use encrypted custom password with salt of itself\n"
+               "    -c [password_string]    calculate the password string that can be used with the \"-c\" option\n"
+               "    -b                      lock with a blank screen\n"
+               "    -d [delay_usec]         milliseconds the screen blinks on successful locks(0 for no-delay & 100000 for 0.1 s)\n"
+               "Thanks for using!\n");
+}
 
 char rand_ch()
 { /*range of characters in int: [A-Z]|[a-z][0-9](rand % max-min+1+min)*/
