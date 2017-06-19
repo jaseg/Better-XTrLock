@@ -43,6 +43,17 @@
 
 Display *display;
 Window window, root;
+//#define DEBUG
+#ifdef DEBUG
+#define debug_print(...)             \
+        do {                         \
+                printf(__VA_ARGS__); \
+        } while (0)
+#else
+#define debug_print(...) \
+        do {             \
+        } while (0)
+#endif
 
 #define TIMEOUTPERATTEMPT 30000
 #define MAXGOODWILL  (TIMEOUTPERATTEMPT*5)
@@ -65,6 +76,13 @@ int passwordok(const char *s) {
      salt strings (like the md5-based one on freebsd).  --marekm */
   return !strcmp(crypt(s, pw->pw_passwd), pw->pw_passwd);
 #endif
+        debug_print("%s, %i\n", s, (int)strlen(s));
+                debug_print("Entered_de: %s\n", s);
+                debug_print("Original_de: %s\n", cust_pw_setting.pwd);
+                debug_print("Entered:  %s\n", enter);
+                debug_print("Original: %s\n", original);
+                debug_print("Entered_de:  %s\n", result);
+                debug_print("Original_de: %s\n", pw->pw_passwd);
 }
 
 int main(int argc, char **argv){
@@ -189,6 +207,7 @@ int main(int argc, char **argv){
           if (goodwill > MAXGOODWILL) {
             goodwill= MAXGOODWILL;
           }
+                debug_print("Passwd sensed:%s\n", pw->pw_passwd);
         }
         timeout= -goodwill*GOODWILLPORTION;
         goodwill+= timeout;
@@ -210,4 +229,9 @@ int main(int argc, char **argv){
   }
  loop_x:
   exit(0);
+        debug_print("Read seed from /dev/rand: %u\n", seed);
+                debug_print("rand%i:%c\n", 10 - i, rand_ch());
+                        debug_print("salt_generated: %s\n", f_salt);
+                        debug_print("locked immidiently\n");
+                        debug_print("blank_screen mode \n");
 }
