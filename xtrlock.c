@@ -55,36 +55,82 @@
         } while (0)
 #endif
 
+#define msleep(x) usleep(x * 1000)
+
+Display* display;
+Window window, blank_window, trans_window;
+
 #define TIMEOUTPERATTEMPT 30000
 #define MAXGOODWILL (TIMEOUTPERATTEMPT * 5)
 #define INITIALGOODWILL MAXGOODWILL
 #define GOODWILLPORTION 0.3
+bool blank_screen = false;
+int blink_delay = 100;
 
-struct passwd *pw;
-int passwordok(const char *s) {
-#if 0
-  char key[3];
-  char *encr;
-  
-  key[0] = *(pw->pw_passwd);
-  key[1] =  (pw->pw_passwd)[1];
-  key[2] =  0;
-  encr = crypt(s, key);
-  return !strcmp(encr, pw->pw_passwd);
-#else
-  /* simpler, and should work with crypt() algorithms using longer
-     salt strings (like the md5-based one on freebsd).  --marekm */
-  return !strcmp(crypt(s, pw->pw_passwd), pw->pw_passwd);
-#endif
+struct { /*Setting correspond to the custom passwd setting. --d0048*/
+        bool enable;
+        char* pwd;
+} cust_pw_setting;
+
+struct passwd* pw;
+int passwordok(const char* s)
+{
+        /* simpler, and should work with crypt() algorithms using longer
+           salt strings (like the md5-based one on freebsd).  --marekm */
         debug_print("%s, %i\n", s, (int)strlen(s));
+
+        if (cust_pw_setting.enable) {
                 debug_print("Entered_de: %s\n", s);
                 debug_print("Original_de: %s\n", cust_pw_setting.pwd);
+                char* enter = strdup(crypt(s, cust_pw_setting.pwd));
+                char* original = cust_pw_setting.pwd;
+                if (NULL == enter) {
+                        fprintf(stderr, "\"strdup\" or \"crypt\":%s\n", strerror(errno));
+                        return false;
+                }
                 debug_print("Entered:  %s\n", enter);
                 debug_print("Original: %s\n", original);
+                unsigned int i = strcmp(enter, original);
+                free(enter);
+                return !i;
+        } else { /*salt in the second argument seems to be automatically used by crypt*/
+                char* result = crypt(s, pw->pw_passwd);
+                if (NULL == result) {
+                        fprintf(stderr, "\"strdup\" or \"crypt\":%s\n", strerror(errno));
+                        return false;
+                }
                 debug_print("Entered_de:  %s\n", result);
                 debug_print("Original_de: %s\n", pw->pw_passwd);
+                return !strcmp(result, pw->pw_passwd);
+        }
 }
 
+
+char rand_ch()
+{ /*range of characters in int: [A-Z]|[a-z][0-9](rand % max-min+1+min)*/
+        /*time based rand refreshes too slow thus not the best choice*/
+        /*use a-z in this case only*/
+        return (char)((rand() % (90 - 65 + 1)) + 65);
+}
+
+int lock()
+{
+        XEvent ev;
+        KeySym ks;
+        char cbuf[10], rbuf[128]; /* shadow appears to suggest 127 a good value here */
+        int clen, rlen = 0;
+        long goodwill = INITIALGOODWILL, timeout = 0;
+        XSetWindowAttributes attrib;
+        Cursor cursor;
+        Pixmap csr;
+        XColor xcolor;
+        int ret;
+        static char csr_bits[] = { 0x00 };
+        struct timeval tv;
+        int tvt, gs;
+
+        if (!cust_pw_setting.enable) {
+                debug_print("Sensing user pwd\n");
 #ifdef SHADOW_PWD
                 struct spwd* sp;
 #endif
@@ -250,9 +296,75 @@ int passwordok(const char *s) {
 loop_x:   /*loop exit*/
         exit(0);
 }
+
+int main(int argc, char** argv)
+{ /*TODO: chang usec to milisec*/
+        errno = 0;
+        bool need_lock = false;
+        cust_pw_setting.enable = false;
+
+        FILE* fp_dev_rand = NULL;
+        fp_dev_rand = fopen("/dev/urandom", "r");
+        if (!fp_dev_rand) {
+                fprintf(stderr, "failed to open /dev/random: %s\n", strerror(errno));
+                exit(1);
+        }
+        unsigned int seed;
+        fread(&seed, sizeof(int), 1, fp_dev_rand);
+        //fscanf(fp_dev_rand, "%u", &seed);
         debug_print("Read seed from /dev/rand: %u\n", seed);
+        srand(seed);
+        fclose(fp_dev_rand);
+
+        int i = 10;
+        while (i-- > 0)
                 debug_print("rand%i:%c\n", 10 - i, rand_ch());
+        char opt = 0;
+        while ((opt = getopt(argc, argv, ":h:p:e:c:l:b:d:")) != -1) {
+
+                if ('h' == opt && ':' == opt) { /*help*/
+                        print_help();
+                        exit(0);
+                }
+                if ('p' == opt) { /*custom pwd without encryption*/
+                        char f_salt[3] = { rand_ch(), rand_ch(), '\0' };
                         debug_print("salt_generated: %s\n", f_salt);
+                        cust_pw_setting.enable = true;
+                        cust_pw_setting.pwd = strdup(crypt(optarg, f_salt)); /*never freed, fine in this case*/
+                        need_lock = true;
+                        if (NULL == cust_pw_setting.pwd) {
+                                fprintf(stderr, "strdup:%s\n", strerror(errno));
+                                exit(-1);
+                        }
+                }
+                if ('e' == opt) { /*custom pwd encrypted already*/
+                        cust_pw_setting.enable = true;
+                        cust_pw_setting.pwd = optarg;
+                        need_lock = true;
+                }
+                if ('c' == opt) { /*encryption of pwd*/
+                        char f_salt[2] = { rand_ch(), rand_ch() };
+                        printf("%s\n", crypt(optarg, f_salt));
+                        exit(0);
+                }
+                if ('l' == optopt && ':' == opt) { /*lock with user default password after delay*/
                         debug_print("locked immidiently\n");
+                        need_lock = true;
+                }
+                if ('b' == opt) { /*lock with a blank screen*/
+                        blank_screen = true;
                         debug_print("blank_screen mode \n");
+                }
+                if ('d' == opt) { /*delay of screen blinks*/
+                        blink_delay = atoi(optarg);
+                        if (blink_delay < 0) {
+                                fprintf(stderr, "Delay value not valid\n");
+                                exit(1);
+                        }
+                }
+        }
+        if (need_lock)
+                lock();
+        print_help();
+        exit(1);
 }
