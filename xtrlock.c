@@ -82,7 +82,7 @@ int passwordok(const char* s)
         if (cust_pw_setting.enable) {
                 debug_print("Entered_de: %s\n", s);
                 debug_print("Original_de: %s\n", cust_pw_setting.pwd);
-                char* enter = strdup(crypt(s, cust_pw_setting.pwd));
+                char* enter = crypt(s, cust_pw_setting.pwd);
                 char* original = cust_pw_setting.pwd;
                 if (NULL == enter) {
                         fprintf(stderr, "\"strdup\" or \"crypt\":%s\n", strerror(errno));
@@ -90,9 +90,7 @@ int passwordok(const char* s)
                 }
                 debug_print("Entered:  %s\n", enter);
                 debug_print("Original: %s\n", original);
-                unsigned int i = strcmp(enter, original);
-                free(enter);
-                return !i;
+                return !strcmp(enter, original);
         } else { /*salt in the second argument seems to be automatically used by crypt*/
                 char* result = crypt(s, pw->pw_passwd);
                 if (NULL == result) {
@@ -108,14 +106,14 @@ int passwordok(const char* s)
 void print_help()
 {
         printf("Xtrlock:\n"
-               "    -h                      show this help\n"
-               "    -l                      lock immediately with user's default password\n"
-               "    -p [password_string]    use custom non-encrypted password\n"
-               "    -e [password_hash]      use encrypted custom password with salt of itself\n"
-               "    -c [password_string]    calculate the password string that can be used with the \"-c\" option\n"
-               "    -b                      lock with a blank screen\n"
-               "    -d [delay_usec]         milliseconds the screen blinks on successful locks(0 for no-delay & 100000 for 0.1 s)\n"
-               "Thanks for using!\n");
+                        "    -h                      show this help\n"
+                        "    -l                      lock immediately with user's default password\n"
+                        "    -p [password_string]    use custom non-encrypted password\n"
+                        "    -e [password_hash]      use encrypted custom password with salt of itself\n"
+                        "    -c [password_string]    calculate the password string that can be used with the \"-c\" option\n"
+                        "    -b                      lock with a blank screen\n"
+                        "    -d [delay_usec]         milliseconds the screen blinks on successful locks(0 for no-delay & 100000 for 0.1 s)\n"
+                        "Thanks for using!\n");
 }
 
 char rand_ch()
@@ -160,11 +158,11 @@ int lock()
 #endif
 
                 /* logically, if we need to do the following then the same
-                applies to being installed setgid shadow.
-                we do this first, because of a bug in linux. --jdamery */
+                   applies to being installed setgid shadow.
+                   we do this first, because of a bug in linux. --jdamery */
                 setgid(getgid());
                 /* we can be installed setuid root to support shadow passwords,
-                and we don't need root privileges any longer.  --marekm */
+                   and we don't need root privileges any longer.  --marekm */
                 setuid(getuid());
 
                 if (strlen(pw->pw_passwd) <= 1) { /*mark as 'x', which means shadow password is enabled.*/
@@ -184,14 +182,14 @@ int lock()
         attrib.background_pixel = BlackPixel(display, DefaultScreen(display));
 
         blank_window = XCreateWindow(display, DefaultRootWindow(display), /*init blank window*/
-            0, 0, DisplayWidth(display, DefaultScreen(display)),
-            DisplayHeight(display, DefaultScreen(display)),
-            0, DefaultDepth(display, DefaultScreen(display)), CopyFromParent, DefaultVisual(display, DefaultScreen(display)),
-            CWOverrideRedirect | CWBackPixel, &attrib);
+                        0, 0, DisplayWidth(display, DefaultScreen(display)),
+                        DisplayHeight(display, DefaultScreen(display)),
+                        0, DefaultDepth(display, DefaultScreen(display)), CopyFromParent, DefaultVisual(display, DefaultScreen(display)),
+                        CWOverrideRedirect | CWBackPixel, &attrib);
 
         trans_window = XCreateWindow(display, DefaultRootWindow(display), /*init window identical to Background*/
-            0, 0, 1, 1, 0, CopyFromParent, InputOnly, CopyFromParent,
-            CWOverrideRedirect, &attrib);
+                        0, 0, 1, 1, 0, CopyFromParent, InputOnly, CopyFromParent,
+                        CWOverrideRedirect, &attrib);
 
         window = trans_window;
 
@@ -214,7 +212,7 @@ int lock()
         gs = 0; /*gs==grab successful*/
         for (tvt = 0; tvt < 100; tvt++) {
                 ret = XGrabKeyboard(display, window, False, GrabModeAsync, GrabModeAsync,
-                    CurrentTime);
+                                CurrentTime);
                 if (ret == GrabSuccess) {
                         gs = 1;
                         break;
@@ -230,9 +228,9 @@ int lock()
         }
 
         if (XGrabPointer(display, window, False, (KeyPressMask | KeyReleaseMask) & 0,
-                GrabModeAsync, GrabModeAsync, None,
-                cursor, CurrentTime)
-            != GrabSuccess) {
+                                GrabModeAsync, GrabModeAsync, None,
+                                cursor, CurrentTime)
+                        != GrabSuccess) {
                 XUngrabKeyboard(display, CurrentTime);
                 fprintf(stderr, "xtrlock: cannot grab pointer\n");
                 exit(1);
@@ -248,61 +246,66 @@ int lock()
                 XFlush(display);
                 debug_print("locked and blinked\n");
         }
+
+        if(blank_screen){
+                XMapWindow(display, blank_window);
+        }
+
         printf("Successfully locked\n");
 
         for (;;) { /*start checker loop*/
                 XNextEvent(display, &ev);
                 switch (ev.type) {
-                case KeyPress:
-                        if (ev.xkey.time < timeout) {
-                                XBell(display, 0);
-                                break;
-                        }
-                        clen = XLookupString(&ev.xkey, cbuf, 9, &ks, 0);
-                        switch (ks) {
-                        case XK_Escape:
-                        case XK_Clear:
-                                rlen = 0;
-                                break;
-                        case XK_Delete:
-                        case XK_BackSpace:
-                                if (rlen > 0)
-                                        rlen--;
-                                break;
-                        case XK_Linefeed:
-                        case XK_Return:
-                                if (rlen == 0)
+                        case KeyPress:
+                                if (ev.xkey.time < timeout) {
+                                        XBell(display, 0);
                                         break;
-                                else
-                                        rbuf[rlen] = 0;
-                                if (passwordok(rbuf))
-                                        goto loop_x;
-                                XBell(display, 0);
-                                rlen = 0;
-                                if (timeout) {
-                                        goodwill += ev.xkey.time - timeout;
-                                        if (goodwill > MAXGOODWILL) {
-                                                goodwill = MAXGOODWILL;
-                                        }
                                 }
-                                timeout = -goodwill * GOODWILLPORTION;
-                                goodwill += timeout;
-                                timeout += ev.xkey.time + TIMEOUTPERATTEMPT;
-                                break;
-                        default:
-                                if (clen != 1)
-                                        break;
-                                /* allow space for the trailing \0 */
-                                if (rlen < (sizeof(rbuf) - 1)) {
-                                        rbuf[rlen] = cbuf[0];
-                                        rlen++;
+                                clen = XLookupString(&ev.xkey, cbuf, 9, &ks, 0);
+                                switch (ks) {
+                                        case XK_Escape:
+                                        case XK_Clear:
+                                                rlen = 0;
+                                                break;
+                                        case XK_Delete:
+                                        case XK_BackSpace:
+                                                if (rlen > 0)
+                                                        rlen--;
+                                                break;
+                                        case XK_Linefeed:
+                                        case XK_Return:
+                                                if (rlen == 0)
+                                                        break;
+                                                else
+                                                        rbuf[rlen] = 0;
+                                                if (passwordok(rbuf))
+                                                        goto loop_x;
+                                                XBell(display, 0);
+                                                rlen = 0;
+                                                if (timeout) {
+                                                        goodwill += ev.xkey.time - timeout;
+                                                        if (goodwill > MAXGOODWILL) {
+                                                                goodwill = MAXGOODWILL;
+                                                        }
+                                                }
+                                                timeout = -goodwill * GOODWILLPORTION;
+                                                goodwill += timeout;
+                                                timeout += ev.xkey.time + TIMEOUTPERATTEMPT;
+                                                break;
+                                        default:
+                                                if (clen != 1)
+                                                        break;
+                                                /* allow space for the trailing \0 */
+                                                if (rlen < (sizeof(rbuf) - 1)) {
+                                                        rbuf[rlen] = cbuf[0];
+                                                        rlen++;
+                                                }
+                                                break;
                                 }
                                 break;
-                        }
-                        break;
 
-                default:
-                        break;
+                        default:
+                                break;
                 }
         } /*end checker loop*/
 loop_x:   /*loop exit*/
@@ -310,7 +313,7 @@ loop_x:   /*loop exit*/
 }
 
 int main(int argc, char** argv)
-{ /*TODO: chang usec to milisec*/
+{ /*TODO: add keeper process*/
         errno = 0;
         bool need_lock = false;
         cust_pw_setting.enable = false;
@@ -332,9 +335,11 @@ int main(int argc, char** argv)
         while (i-- > 0)
                 debug_print("rand%i:%c\n", 10 - i, rand_ch());
         char opt = 0;
-        while ((opt = getopt(argc, argv, ":h:p:e:c:l:b:d:")) != -1) {
+        while ((opt = getopt(argc, argv, "hp:e:c:lbd:")) != -1) {
+                //while ((opt = getopt(argc, argv, ":h:p:e:c:l:b:d:")) != -1) {
+                debug_print("Processing args: \"%c|%c\"\n", opt, optopt);
 
-                if ('h' == opt && ':' == opt) { /*help*/
+                if ('h' == opt) { /*help(no arg)*/
                         print_help();
                         exit(0);
                 }
@@ -359,12 +364,13 @@ int main(int argc, char** argv)
                         printf("%s\n", crypt(optarg, f_salt));
                         exit(0);
                 }
-                if ('l' == optopt && ':' == opt) { /*lock with user default password after delay*/
+                if ('l' == opt) { /*lock with user default password after delay(no arg)*/
                         debug_print("locked immidiently\n");
                         need_lock = true;
                 }
-                if ('b' == opt) { /*lock with a blank screen*/
+                if ('b' == opt) { /*lock with a blank screen(no arg)*/
                         blank_screen = true;
+                        //need_lock = true;
                         debug_print("blank_screen mode \n");
                 }
                 if ('d' == opt) { /*delay of screen blinks*/
@@ -379,4 +385,4 @@ int main(int argc, char** argv)
                 lock();
         print_help();
         exit(1);
-}
+        }
