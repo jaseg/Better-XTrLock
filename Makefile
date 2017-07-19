@@ -22,6 +22,7 @@ RM=rm
 CONFIGPATH=/usr/share/xtrlock/
 RESPATH=-D'LOCK_IMG_PATH="$(CONFIGPATH)lock.png"' -D'UNLOCK_IMG_PATH="$(CONFIGPATH)unlock.png"'
 #RESPATH=-D'LOCK_IMG_PATH="$(shell readlink -f lock.png)"' -D'UNLOCK_IMG_PATH="$(shell readlink -f unlock.png)"'
+LID_CMD:=xtrlock -l
 
 xtrlock:	xtrlock.o
 
@@ -45,7 +46,14 @@ install.man:
 install.bash_completion:
 	$(INSTALL) -c -m 754 xtrlock-completion.sh /usr/share/bash-completion/completions/xtrlock
 
+install.on_lid:
+	cp ./on-lid-close.sh on-lid-close.sh.tmp
+	sed 's/xtrlock -l/$(LID_CMD)/g' on-lid-close.sh.tmp > tmp && mv tmp on-lid-close.sh.tmp
+	$(INSTALL) -c -m 744 -o root xtrlock-lid-down /etc/acpi/events/xtrlock-lid-down
+	$(INSTALL) -c -m 744 -o root ./on-lid-close.sh.tmp /etc/acpi/on-lid-close.sh
+	rm -f on-lid-close.sh.tmp
 remove:
 	$(RM) /usr/bin/xtrlock
 	$(RM) -rf $(CONFIGPATH)
 	$(RM) -f /usr/share/bash-completion/completions/xtrlock
+	$(RM) -f /etc/acpi/on-lid-close.sh /etc/acpi/events/xtrlock-lid-down
