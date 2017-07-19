@@ -34,16 +34,18 @@ clean:
 	-rm -f xtrlock.o xtrlock
 
 install:	xtrlock
-		$(INSTALL) -c -m 2755 -o root -g shadow xtrlock /usr/bin
 	$(INSTALL) -c -m 2755 -o root -g shadow xtrlock /usr/bin
 	if [ ! -d "$(CONFIGPATH)" ]; then mkdir $(CONFIGPATH); fi
 	$(INSTALL) -c -m 644 resources/lock.png $(CONFIGPATH)
 	$(INSTALL) -c -m 644 resources/unlock.png $(CONFIGPATH)
 
 install.man:
-		$(INSTALL) -c -m 644 xtrlock.man /usr/man/man1/xtrlock.1x
+	$(INSTALL) -c -m 644 xtrlock.man /usr/share/man/man1/xtrlock.1x
 
+install.bash_completion:
+	$(INSTALL) -c -m 754 xtrlock-completion.sh /usr/share/bash-completion/completions/xtrlock
 
 remove:
 	$(RM) /usr/bin/xtrlock
 	$(RM) -rf $(CONFIGPATH)
+	$(RM) -f /usr/share/bash-completion/completions/xtrlock

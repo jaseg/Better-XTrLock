@@ -109,13 +109,13 @@ int passwordok(const char* s)
 void print_help()
 {
         printf("Xtrlock:\n"
-                        "    -h                      show this help\n"
-                        "    -l                      lock immediately with user's default password\n"
-                        "    -p [password_string]    use custom non-encrypted password\n"
-                        "    -e [password_hash]      use encrypted custom password with salt of itself\n"
-                        "    -c [password_string]    calculate the password string that can be used with the \"-c\" option\n"
-                        "    -b                      lock with a blank screen\n"
-                        "    -d [delay_usec]         milliseconds the screen blinks on successful locks(0 for no-delay & 100000 for 0.1 s)\n"
+                        "    -h --help                                    show this help\n"
+                        "    -l --lock-user-password                      lock immediately with the user's default password\n"
+                        "    -p --password           [password_string]    use custom non-encrypted password\n"
+                        "    -e --encrypted-password [password_hash]      use encrypted custom password with salt of itself\n"
+                        "    -c --calculate          [password_string]    calculate the password string that can be used with the \"-c\" option\n"
+                        "    -b --block-screen                            lock with a blank screen\n"
+                        "    -d --delay of blink     [delay_usec]         milliseconds the screen blinks on successful locks(0 for no-delay & 100000 for 0.1 s)\n"
                         "    -n --notify                                  send message notification on lock and unlock\n"
                         "Thanks for using!\n");
 }
@@ -391,17 +391,25 @@ int main(int argc, char** argv)
         }
         unsigned int seed;
         fread(&seed, sizeof(int), 1, fp_dev_rand);
-        //fscanf(fp_dev_rand, "%u", &seed);
         debug_print("Read seed from /dev/rand: %u\n", seed);
         srand(seed);
         fclose(fp_dev_rand);
 
-        int i = 10;
-        while (i-- > 0)
-                debug_print("rand%i:%c\n", 10 - i, rand_ch());
+        static struct option long_options[] =
+        {
+                {"help", no_argument, NULL, 'h'},
+                {"password", required_argument, NULL, 'p'},
+                {"encrypted-password", required_argument, NULL, 'e'},
+                {"calculate", required_argument, NULL, 'c'},
+                {"lock-user-password", no_argument, NULL, 'l'},
+                {"block-screen", no_argument, NULL, 'b'},
+                {"delay-of-blink", required_argument, NULL, 'd'},
+                {"notify", no_argument, NULL, 'n'},
+                {NULL, 0, NULL, 0}
+        };
         char opt = 0;
-        while ((opt = getopt(argc, argv, "hp:e:c:lbd:")) != -1) {
-                //while ((opt = getopt(argc, argv, ":h:p:e:c:l:b:d:")) != -1) {
+        //while ((opt = getopt(argc, argv, "hp:e:c:lbd:n")) != -1) {
+        while ((opt = getopt_long(argc, argv, "hp:e:c:lbd:n", long_options, NULL)) != -1) {
                 debug_print("Processing args: \"%c|%c\"\n", opt, optopt);
 
                 if ('h' == opt) { /*help(no arg)*/
