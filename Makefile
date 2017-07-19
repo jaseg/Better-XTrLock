@@ -13,28 +13,37 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-LDLIBS=-lX11 -lcrypt
-CDEFS=-DSHADOW_PWD
+LDLIBS=-lX11 -lcrypt $(shell pkg-config --libs libnotify)
+CDEFS=-DSHADOW_PWD $(RESPATH)
 CC=gcc
-CFLAGS=-Wall ${CDEFS}
+CFLAGS=-Wall ${CDEFS} $(shell pkg-config --cflags libnotify)
 INSTALL=install
 RM=rm
+CONFIGPATH=/usr/share/xtrlock/
+RESPATH=-D'LOCK_IMG_PATH="$(CONFIGPATH)lock.png"' -D'UNLOCK_IMG_PATH="$(CONFIGPATH)unlock.png"'
+#RESPATH=-D'LOCK_IMG_PATH="$(shell readlink -f lock.png)"' -D'UNLOCK_IMG_PATH="$(shell readlink -f unlock.png)"'
 
 xtrlock:	xtrlock.o
 
 xtrlock.o:	xtrlock.c
 
-debug: 
+debug:
 	$(CC) xtrlock.c $(LDLIBS) $(CFLAGS) -DDEBUG -g -o xtrlock
 
 clean:
 	-rm -f xtrlock.o xtrlock
+
 install:	xtrlock
 		$(INSTALL) -c -m 2755 -o root -g shadow xtrlock /usr/bin
+	$(INSTALL) -c -m 2755 -o root -g shadow xtrlock /usr/bin
+	if [ ! -d "$(CONFIGPATH)" ]; then mkdir $(CONFIGPATH); fi
+	$(INSTALL) -c -m 644 resources/lock.png $(CONFIGPATH)
+	$(INSTALL) -c -m 644 resources/unlock.png $(CONFIGPATH)
 
 install.man:
 		$(INSTALL) -c -m 644 xtrlock.man /usr/man/man1/xtrlock.1x
 
-remove:
-		$(RM) /usr/bin/xtrlock
 
+remove:
+	$(RM) /usr/bin/xtrlock
+	$(RM) -rf $(CONFIGPATH)

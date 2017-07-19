@@ -37,13 +37,15 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <values.h>
+#include <libnotify/notify.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 
 #ifdef SHADOW_PWD
 #include <shadow.h>
 #endif
 
-//#define DEBUG
 #ifdef DEBUG
 #define debug_print(...)             \
         do {                         \
@@ -65,6 +67,7 @@ Window window, blank_window, trans_window;
 #define INITIALGOODWILL MAXGOODWILL
 #define GOODWILLPORTION 0.3
 bool blank_screen = false;
+bool send_notification = false;
 int blink_delay = 100;
 
 struct { /*Setting correspond to the custom passwd setting. --d0048*/
@@ -113,6 +116,7 @@ void print_help()
                         "    -c [password_string]    calculate the password string that can be used with the \"-c\" option\n"
                         "    -b                      lock with a blank screen\n"
                         "    -d [delay_usec]         milliseconds the screen blinks on successful locks(0 for no-delay & 100000 for 0.1 s)\n"
+                        "    -n --notify                                  send message notification on lock and unlock\n"
                         "Thanks for using!\n");
 }
 
@@ -121,6 +125,58 @@ char rand_ch()
         /*time based rand refreshes too slow thus not the best choice*/
         /*use a-z in this case only*/
         return (char)((rand() % (90 - 65 + 1)) + 65);
+}
+
+int notify_lock(bool lock){/*0 for unlock, 1 for lock. Function relies on notify-osd*/
+        notify_init("Xtrlock");
+
+        if(lock){
+                NotifyNotification* nlock = notify_notification_new ("Successfully Locked",
+                                "The screen has been locked",
+                                0);
+                notify_notification_set_timeout(nlock, 1000); /* 1 second. Seems to be ignored by some severs*/
+#ifdef LOCK_IMG_PATH
+                GError* err = NULL;
+                GdkPixbuf* pixlock = gdk_pixbuf_new_from_file(LOCK_IMG_PATH, &err);
+                if(!err && pixlock){
+                        notify_notification_set_image_from_pixbuf(nlock, pixlock);
+                        debug_print("Successfully load image\n");
+                }
+                else{
+                        fprintf(stderr,"Failed to read notification icon: ");
+                        *err->message? fprintf(stderr,"%s\n",err->message) : fprintf(stderr,"Nothing to show\n");
+                        g_error_free(err);
+                }
+#endif
+                if (!notify_notification_show(nlock, 0)){
+                        fprintf(stderr, "Fail to notify\n");
+                        return -1;
+                }
+        }
+        else{
+                NotifyNotification* nunlock = notify_notification_new ("Successfully Unlocked",
+                                "The screen has been unlocked",
+                                0);
+                notify_notification_set_timeout(nunlock, 1000);
+#ifdef UNLOCK_IMG_PATH
+                GError* err = NULL;
+                GdkPixbuf* pixunlock = gdk_pixbuf_new_from_file(UNLOCK_IMG_PATH, &err);
+                if(!err && pixunlock){
+                        notify_notification_set_image_from_pixbuf(nunlock, pixunlock);
+                        debug_print("Successfully load image\n");
+                }
+                else{
+                        fprintf(stderr,"Failed to read notification icon: ");
+                        *err->message? fprintf(stderr,"%s\n",err->message) : fprintf(stderr,"Nothing to show\n");
+                        g_error_free(err);
+                }
+#endif
+                if (!notify_notification_show(nunlock, 0)){
+                        fprintf(stderr, "Fail to notify\n");
+                        return -1;
+                }
+        }
+        return 0;
 }
 
 int lock()
@@ -251,6 +307,9 @@ int lock()
                 XMapWindow(display, blank_window);
         }
 
+        if(send_notification){
+                notify_lock(true);
+        }
         printf("Successfully locked\n");
 
         for (;;) { /*start checker loop*/
@@ -309,11 +368,17 @@ int lock()
                 }
         } /*end checker loop*/
 loop_x:   /*loop exit*/
+        if(send_notification){
+                notify_lock(false);
+        }
+        notify_uninit();
         exit(0);
 }
 
 int main(int argc, char** argv)
-{ /*TODO: add keeper process*/
+{ /*TODO: Add keeper process*/
+        /*TODO: On lid close*/
+        /*TODO: Record failed trails*/
         errno = 0;
         bool need_lock = false;
         cust_pw_setting.enable = false;
@@ -370,7 +435,6 @@ int main(int argc, char** argv)
                 }
                 if ('b' == opt) { /*lock with a blank screen(no arg)*/
                         blank_screen = true;
-                        //need_lock = true;
                         debug_print("blank_screen mode \n");
                 }
                 if ('d' == opt) { /*delay of screen blinks*/
@@ -380,9 +444,16 @@ int main(int argc, char** argv)
                                 exit(1);
                         }
                 }
+                if('n' == opt){/*send notification*/
+                        send_notification = true;
+                }
+                if('?' == opt){
+                        print_help();
+                        exit(1);
+                }
         }
         if (need_lock)
                 lock();
         print_help();
         exit(1);
-        }
+}
