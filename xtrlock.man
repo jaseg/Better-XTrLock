@@ -2,7 +2,7 @@
 .SH NAME
 xtrlock \- Lock X display until password supplied, leaving windows visible
 .SH SYNOPSIS
-.B xtrlock
+.B A modified version of xtrlock with more functions implemented. 
 .SH DESCRIPTION
 .B xtrlock
 locks the X server till the user enters their password at the keyboard.
@@ -25,7 +25,61 @@ generate bells and are otherwise ignored until a timeout has expired.
 The X server screen saver continues to operate normally; if it comes
 into operation the display may be restored by the usual means of
 touching a key (Shift, for example) or the mouse.
-.SH OPTIONS, X RESOURCES, CONFIGURATION
+
+This program now allows user to use their own password instead of 
+the default user password, which often is also used for other things 
+such as root access via sudo(for many desktop users, I know that!) 
+that one may not want to reveal. Using another password and share it 
+with your friend could solved this. 
+
+To use this program with keyboard shortcuts, try tools like xbindkeys.
+However, to encrypt the password in the config files of the binding
+tools, one may want to use the -c flag to encrypt the password string
+and pass the encrypted string with the -e flag.
+
+To lock and cover the screen completely as what a normal screen lock 
+does instead of exposing the screen, pass the -b flag.
+
+To receive a desktop notification on lock and unlock. The notification 
+usually appears at the right up corner of the screen and last one 
+second as default, this may vary according to the notification server 
+used. The image displayed on the notification is located at the /usr/share/xtrlock
+by default. Feel free to change the image by replacing the lock.png or 
+unlock.png with the replacement. 
+
+Also, in order to notify the user that the screen has been successfully 
+locked, the screen will be blinked (which can be configured with -d 
+option) on successful locks under normal mode. While the -b flag is passed,
+the screen will only be covered on successful locks.
+[If the worse comes to the worst, use <Ctrl>+<Alt>+<F2> and login to kill
+this program...]
+
+.SH OPTIONS: 
+    -h --help                                    show this help
+
+    -l --lock-user-password                      lock immediately with 
+                                                 the user's default password
+
+    -p --password           [password_string]    use custom non-encrypted 
+                                                 password
+
+    -e --encrypted-password [password_hash]      use encrypted custom password 
+                                                 with salt of itself
+
+    -c --calculate          [password_string]    calculate the password string
+                                                 that can be used with the "-c" 
+                                                 option
+
+    -b --block-screen                            lock with a blank screen
+
+    -d --delay of blink     [delay_usec]         milliseconds the screen blinks 
+                                                 on successful locks
+                                                 (0 for no-delay & 100000 for 0.1 s)
+
+    -n --notify                                  send message notification on
+                                                 lock and unlock
+
+.SH X RESOURCES, CONFIGURATION:
 None.
 .SH BUGS
 Additional input devices other than the keyboard and mouse are not
